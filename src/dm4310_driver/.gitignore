@@ -1,0 +1,13 @@
+# ── 包级 .gitignore（如果在 src/dm4310_driver 里 git init 就用这个）──
+__pycache__/
+*.py[cod]
+
+# 官方 SDK 是【二进制】，通常要提交（否则别人编译不了）
+# 如果你不想提交它，取消下面两行的注释：
+# third_party/DMLink/*.so
+# third_party/DMLink/dmcan.h
+
+# 编辑器
+.vscode/
+*.swp
+*~

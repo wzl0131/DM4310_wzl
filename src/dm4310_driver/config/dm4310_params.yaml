@@ -1,0 +1,53 @@
+dm4310_node:
+  ros__parameters:
+    # ---------- 电机 / 总线 ----------
+    can_id: 12                # ✅ 实测扫到
+    mst_id: 44                # ✅ 实测反馈帧 can_id=0x02C
+                              #    如果知道确切 MST_ID，填上更稳
+    channel: 0                # DM-LinkX-4C 通道 0~3
+    control_rate_hz: 1000.0   # 控制频率（达妙反馈 1000Hz）
+
+    # ---------- CAN FD 相关（⭐FD 新增）----------
+    # ⚠️ 这里有两个独立的"canfd"，别混：
+    #
+    #   ① canfd_channel —— 【通道级】通道控制器是否工作在 FD 模式
+    #      true  = FD 模式。FD 模式的控制器【向下兼容经典帧】，
+    #              所以开着它，DM 电机照样能收发经典帧 ✅
+    #      false = 纯经典模式
+    #
+    #   ② canfd_frame  —— 【帧级】发出去的这一帧用哪种格式
+    #      false = 经典 CAN 帧（DM4310/4340 等出厂只认这个）✅
+    #      true  = CAN FD 帧（FDF=1）。从站不支持 FD 时会当错误帧丢弃，
+    #              表现为"发送成功、一帧都收不到"
+    #
+    #   ⭐ 典型正确组合：通道 FD 模式 = true，帧格式 = false
+    #      （学长那边能跑，很可能就是这个组合）
+    #
+    #   ③④ 波特率：仲裁段两种模式都用；数据段只在通道 FD 模式下有意义
+    #   ⑤⑥ 采样点：仲裁段和数据段各一个，都必须给有效值（不能是 0）
+    canfd_channel: true       # ⭐FD 通道开 FD 模式（向下兼容，不影响 DM 电机）
+    canfd_frame: true         # ⭐FD 发 CAN FD 帧（实测 5 Mbps 可通，2 Mbps 不通）
+    can_baudrate: 1000000     # 仲裁段 1 Mbps（达妙固定）
+    canfd_baudrate: 5000000   # ⭐FD 数据段 5 Mbps（实测可通）
+    can_sp: 0.75              # 仲裁段采样点（达妙固定 0.75）
+    canfd_sp: 0.75            # 数据段采样点（必须给值，0 会算非法时序）
+    # ⭐FD BRS（Bit Rate Switch）：决定数据段是否真的切到 canfd_baudrate
+    #   true  = 数据段跑到 5 Mbps（真提速）  ← 现在用这个
+    #   false = 数据段仍跑仲裁段 1 Mbps（只是"格式是 FD"）
+    canfd_brs: true
+
+    # ---------- MIT 增益 ----------
+    # ⭐ 增益在【上位机】给，电机用它做阻抗控制
+    #    kp 大 → 硬（跟得紧）    kp 小 → 软
+    #    kd 大 → 阻尼大（不抖）  kd 小 → 容易振荡
+    # ⚠️ 第一次跑先给小的：kp=10, kd=0.5；稳了再加
+    kp: 10.0                  # 第一次用小的
+    kd: 0.5
+
+    # ---------- 安全 ----------
+    timeout_ms: 100           # 超过这么久没反馈 → 自动切阻尼模式（kp=0）
+
+    # ---------- 备注 ----------
+    # 反馈和打包用的映射范围写死在 motor.cpp 的 motor_limit_params：
+    #   DM4310 = {PMAX 12.5, VMAX 50, TMAX 10, KD_MAX 4}
+    # 如果电机里的 PMAX/VMAX/TMAX 被改过，要同步改那张表
